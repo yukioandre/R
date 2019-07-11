@@ -14,7 +14,7 @@ str(df)
 summary(df)
 
 
-
+#################################################################
 # FILTER (SUBSETTING) EXAMPLES
 # Filter Sepal Length < 5 for all columns
 df[df$Sepal.Length < 5,]
@@ -29,7 +29,7 @@ df[df$Sepal.Length == 5,c("Sepal.Width", "Species")]
 df[df$Species != "setosa",-1]
 
 
-
+#################################################################
 # PLOTTING EXAMPLES
 # Plot scatterplot all variables in the dataset, changing color accordingly to the specie
 plot(df, col=df$Species)
@@ -37,10 +37,12 @@ plot(df, col=df$Species)
 # Plot petal lenght against width
 library(RColorBrewer)
 plot(df$Petal.Length, df$Petal.Width, col=df$Species)
-legend(x=5.9, y=0.8, legend=levels(iris$Species), col=brewer.pal(3, "Set2"), pch=1)
+legend(x=5.9, y=0.8, legend=levels(iris$Species), 
+       col=brewer.pal(3, "Set2"), pch=1)
 
 plot(df$Petal.Length, df$Petal.Width, col=df$Species)
-legend('bottomright', legend=levels(iris$Species), col=brewer.pal(3, "Set2"), pch=1, bty='n')
+legend('bottomright', legend=levels(iris$Species), 
+       col=brewer.pal(3, "Set2"), pch=1, bty='n')
 
 library(ggplot2)
 ggplot(iris,aes(x = Sepal.Length, y = Sepal.Width, col= Species)) + geom_point()
@@ -60,17 +62,55 @@ cor(df[,-5])
 # mean according to each specie
 aggregate(df[, c(1,2,3,4)], list(df$Species), mean)
 
-
+#################################################################
 # MODELS
-# K-Means
-par(mfrow=c(1,1))
-k.max <- 5
-wss<- sapply(1:k.max,function(k){kmeans(iris[,3:4],k,nstart = 20,iter.max = 20)$tot.withinss})
-wss
+# Separa em treino e teste
+smp_size <- floor(0.75 * nrow(df))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(df)), size = smp_size)
+train <- df[train_ind, ]
+test <- df[-train_ind, ]
 
-plot(1:k.max,wss, type= "b", xlab = "Number of clusters(k)", ylab = "Within cluster sum of squares")
+#################################################################
+# KMEANS
+# Roda o modelo com treino
+exemplo_kmeans <- kmeans(train[1:4], 3);
+exemplo_kmeans$size # tamanho de cada cluster gerado
+exemplo_kmeans$cluster # a qual cluster pertencer cada um
+table(icluster$cluster,iris$Species) # verifica acerto
 
-icluster <- kmeans(iris[,3:4],3,nstart = 20)
-table(icluster$cluster,iris$Species)
+# aplica na base teste
+pred_test <- predict(exemplo_kmeans, newdata=test[1:4])
 
-# Logit
+#################################################################
+# KNN from CLASS LIBRARY
+library("class")
+
+# Execution of k-NN with k=1
+KnnTestPrediction_k1 <- knn(train[,-5], test[,-5],
+                            train$Species, k=1, prob=TRUE)
+
+# Execution of k-NN with k=2
+KnnTestPrediction_k2 <- knn(train[,-5], test[,-5],
+                            train$Species, k=2, prob=TRUE)
+
+
+# Avalia precisao
+table(test$Species, KnnTestPrediction_k2)
+
+#################################################################
+# k-NN using caret with 
+library(ISLR)
+library(caret)
+
+# Run k-NN:
+set.seed(400)
+ctrl <- trainControl(method="repeatedcv",repeats = 2)
+knnFit <- train(Species ~ ., data = train, method = "knn", 
+                trControl = ctrl, preProcess = c("center","scale"),tuneLength = 20)
+knnFit
+
+plot(knnFit)
+
+knnPredict <- predict(knnFit,newdata = test )
+confusionMatrix(knnPredict, test$Species )
