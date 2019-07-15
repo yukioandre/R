@@ -62,42 +62,48 @@ cor(df[,-5])
 # mean according to each specie
 aggregate(df[, c(1,2,3,4)], list(df$Species), mean)
 
+
+#################################################################
+# we should normalize/standardize in order to use k-means/knn
+
+# normalization function 
+normal <-function(x) { (x -min(x))/(max(x)-min(x))   }
+
+# Run nomalization on first 4 coulumns of dataset because they are the predictors
+df_2 <- as.data.frame(lapply(df[,c(1:4)], normal))
+
+# check if data is normal
+summary(df_2)
+
 #################################################################
 # MODELS
-# Separa em treino e teste
-smp_size <- floor(0.75 * nrow(df))
+# Split train - test
+smp_size <- floor(0.75 * nrow(df_2))
 set.seed(123)
 train_ind <- sample(seq_len(nrow(df)), size = smp_size)
 train <- df[train_ind, ]
 test <- df[-train_ind, ]
 
 #################################################################
-# KMEANS
-# Roda o modelo com treino
-exemplo_kmeans <- kmeans(train[1:4], 3);
-exemplo_kmeans$size # tamanho de cada cluster gerado
-exemplo_kmeans$cluster # a qual cluster pertencer cada um
-table(icluster$cluster,iris$Species) # verifica acerto
-
-# aplica na base teste
-pred_test <- predict(exemplo_kmeans, newdata=test[1:4])
-
-#################################################################
-# KNN from CLASS LIBRARY
+# KNN from CLASS LIBRARY 
 library("class")
 
 # Execution of k-NN with k=1
 KnnTestPrediction_k1 <- knn(train[,-5], test[,-5],
                             train$Species, k=1, prob=TRUE)
 
-# Execution of k-NN with k=2
-KnnTestPrediction_k2 <- knn(train[,-5], test[,-5],
-                            train$Species, k=2, prob=TRUE)
+# Execution of k-NN with k=10
+KnnTestPrediction_k10 <- knn(train[,-5], test[,-5],
+                            train$Species, k=10, prob=TRUE)
 
 
 # Avalia precisao
-table(test$Species, KnnTestPrediction_k2)
+tabela_cruzada = table(test$Species, KnnTestPrediction_k10)
 
+accuracy <- function(x){sum(diag(x)/(sum(rowSums(x)))) * 100}
+accuracy(tabela_cruzada)
+
+#(UP TO THIS POINT, EVERYTHING IS OK, THE REST IS A DRAFT)
 #################################################################
 # k-NN using caret with 
 library(ISLR)
@@ -114,3 +120,16 @@ plot(knnFit)
 
 knnPredict <- predict(knnFit,newdata = test )
 confusionMatrix(knnPredict, test$Species )
+
+
+
+#################################################################
+# KMEANS
+# Roda o modelo com treino
+exemplo_kmeans <- kmeans(train[1:4], 3);
+exemplo_kmeans$size # tamanho de cada cluster gerado
+exemplo_kmeans$cluster # a qual cluster pertencer cada um
+table(icluster$cluster,iris$Species) # verifica acerto
+
+# aplica na base teste
+pred_test <- predict(exemplo_kmeans, newdata=test[1:4])
